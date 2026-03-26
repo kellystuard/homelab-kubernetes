@@ -1,3 +1,4 @@
+---
 version: 1
 stack_defaults:
   # Authenticate kubectl before planning/applying. Override this in stack settings
