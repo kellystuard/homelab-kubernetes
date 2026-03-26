@@ -1,3 +1,4 @@
+---
 # Server plan
 apiVersion: upgrade.cattle.io/v1
 kind: Plan
@@ -9,10 +10,10 @@ spec:
   cordon: true
   nodeSelector:
     matchExpressions:
-    - key: node-role.kubernetes.io/control-plane
-      operator: In
-      values:
-      - "true"
+      - key: node-role.kubernetes.io/control-plane
+        operator: In
+        values:
+          - "true"
   serviceAccountName: system-upgrade
   upgrade:
     image: rancher/k3s-upgrade
@@ -29,12 +30,12 @@ spec:
   cordon: true
   nodeSelector:
     matchExpressions:
-    - key: node-role.kubernetes.io/control-plane
-      operator: DoesNotExist
+      - key: node-role.kubernetes.io/control-plane
+        operator: DoesNotExist
   prepare:
     args:
-    - prepare
-    - server-plan
+      - prepare
+      - server-plan
     image: rancher/k3s-upgrade
   serviceAccountName: system-upgrade
   upgrade:
