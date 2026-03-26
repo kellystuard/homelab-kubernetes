@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-smb
+  namespace: paperless
+spec:
+  type: LoadBalancer
+  selector:
+    app: paperless-smb
+  ports:
+    - name: smb-445
+      port: 445
+      targetPort: 445
+    - name: smb-139
+      port: 139
+      targetPort: 139
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-smb
+  namespace: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paperless-smb
+  template:
+    metadata:
+      labels:
+        app: paperless-smb
+    spec:
+      containers:
+        - name: samba
+          image: dperson/samba
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - >-
+              /usr/bin/samba.sh -n -g "force user = ${SMB_USER}"
+              -g "force group = ${SMB_USER}" -s "consume;/share;yes;no;no;paperless-scan"
+              -u "${SMB_USER};${SMB_PASSWORD};1000;${SMB_USER};1000"
+          envFrom:
+            - secretRef:
+                name: paperless-smb-auth
+          env:
+            - name: SMB_USER
+              value: paperless-scan
+          ports:
+            - containerPort: 445
+            - containerPort: 139
+          volumeMounts:
+            - name: consume
+              mountPath: /share
+      volumes:
+        - name: consume
+          persistentVolumeClaim:
+            claimName: paperless-consume-pvc

@@ -1,0 +1,296 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-ai-data-pvc
+  namespace: paperless
+spec:
+  storageClassName: spinning
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paperless-ai-config
+  namespace: paperless
+data:
+  SYSTEM_PROMPT: |
+    You are a personalized document analyzer. Your task is to analyze documents and extract relevant information.
+
+    Analyze the document content and extract the following information into a structured JSON object:
+
+    1. title: Create a concise, meaningful title for the document
+    2. correspondent: Identify the sender/institution but do not include addresses
+    3. tags: Select up to 4 relevant thematic tags
+    4. document_date: Extract the document date (format: YYYY-MM-DD)
+    5. document_type: Determine a precise type that classifies the document (e.g. Invoice, Contract, Employer, Information and so on)
+    6. language: Determine the document language (e.g. "de" or "en")
+
+    Important rules for the analysis:
+
+    For tags:
+    - FIRST check the existing tags before suggesting new ones
+    - Use only relevant categories
+    - Maximum 4 tags per document, less if sufficient (at least 1)
+    - Avoid generic or too specific tags
+    - Use only the most important information for tag creation
+    - The output language is the one used in the document! IMPORTANT!
+
+    For the title:
+    - Short and concise, NO ADDRESSES
+    - Contains the most important identification features
+    - For invoices/orders, mention invoice/order number if available
+    - The output language is the one used in the document! IMPORTANT!
+
+    For the correspondent:
+    - Identify the sender or institution
+    - When generating the correspondent, always create the shortest possible form of the company name (e.g. "Amazon" instead of "Amazon EU SARL, German branch")
+
+    For the document date:
+    - Extract the date of the document
+    - Use the format YYYY-MM-DD
+    - If multiple dates are present, use the most relevant one
+
+    For the language:
+    - Determine the document language
+    - Use language codes like "de" for German or "en" for English
+    - If the language is not clear, use "und" as a placeholder
+
+    When creating correspondents and tags, leave the owner empty, so they can be viewed and edited by all users.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-gpt-prompts-pvc
+  namespace: paperless
+spec:
+  storageClassName: spinning
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-ai
+  namespace: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paperless-ai
+  template:
+    metadata:
+      labels:
+        app: paperless-ai
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: paperless-ai
+          image: clusterzx/paperless-ai:latest
+          envFrom:
+            - secretRef:
+                name: paperless-ai-auth
+            - configMapRef:
+              name: paperless-ai-config
+          env:
+            - name: PAPERLESS_API_URL
+              value: http://paperless.paperless.svc.cluster.local/api
+            - name: PAPERLESS_AI_PORT
+              value: "3000"
+            - name: PAPERLESS_AI_INITIAL_SETUP
+              value: "no"
+            - name: PAPERLESS_USERNAME
+              value: admin
+            - name: AI_PROVIDER
+              value: ollama
+            - name: OLLAMA_API_URL
+              value: http://ollama.llm.svc.cluster.local:11434
+            - name: OLLAMA_MODEL
+              value: llama3.2:3b
+            - name: SCAN_INTERVAL
+              value: "*/30 * * * *"
+            - name: PROCESS_PREDEFINED_DOCUMENTS
+              value: "yes"
+            - name: TAGS
+              value: "\U0001F195"
+            - name: ADD_AI_PROCESSED_TAG
+              value: "yes"
+            - name: AI_PROCESSED_TAG_NAME
+              value: "\U0001F916"
+            - name: USE_EXISTING_DATA
+              value: "yes"
+            - name: TOKEN_LIMIT
+              value: "128000"
+            - name: RESPONSE_TOKENS
+              value: "1000"
+            - name: PROCESS_ONLY_NEW_DOCUMENTS
+              value: "no"
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: paperless-ai-data
+              mountPath: /app/data
+      volumes:
+        - name: paperless-ai-data
+          persistentVolumeClaim:
+            claimName: paperless-ai-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-ai
+  namespace: paperless
+spec:
+  type: ClusterIP
+  selector:
+    app: paperless-ai
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-gpt
+  namespace: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paperless-gpt
+  template:
+    metadata:
+      labels:
+        app: paperless-gpt
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: paperless-gpt
+          image: icereed/paperless-gpt:latest
+          env:
+            - name: PAPERLESS_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-ai-auth
+                  key: PAPERLESS_TOKEN
+            - name: PAPERLESS_BASE_URL
+              value: http://paperless.paperless.svc.cluster.local
+            - name: OLLAMA_HOST
+              value: http://ollama.llm.svc.cluster.local:11434
+            - name: LLM_PROVIDER
+              value: ollama
+            - name: LLM_MODEL
+              value: llama3.2:3b
+            - name: OCR_PROVIDER
+              value: llm
+            - name: VISION_LLM_PROVIDER
+              value: ollama
+            - name: VISION_LLM_MODEL
+              value: minicpm-v:8b
+            - name: LLM_LANGUAGE
+              value: English
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: paperless-gpt-prompts
+              mountPath: /app/prompts
+      volumes:
+        - name: paperless-gpt-prompts
+          persistentVolumeClaim:
+            claimName: paperless-gpt-prompts-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-gpt
+  namespace: paperless
+spec:
+  type: LoadBalancer
+  selector:
+    app: paperless-gpt
+  ports:
+    - name: http
+      port: 3002
+      targetPort: 8080
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: paperless-ai-redirect
+  namespace: paperless
+spec:
+  redirectRegex:
+    regex: ^https?://paperless\.local/ai/?(.*)
+    replacement: http://paperless-ai.local/$1
+    permanent: false
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-ai-redirect
+  namespace: paperless
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: paperless-paperless-ai-redirect@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: paperless.local
+      http:
+        paths:
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-ai
+                port:
+                  number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-ai
+  namespace: paperless
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: paperless-ai.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-ai
+                port:
+                  number: 3000

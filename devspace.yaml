@@ -1,0 +1,130 @@
+version: v2beta1
+
+metadata:
+  name: homelab
+
+vars:
+  CLUSTER_NAME: "local"
+  KUBECONFIG_CONTEXT: "local"
+
+# Development environment configuration
+dev:
+  app:
+    imageSelector: nginx:latest
+    workdir: /workspace
+    persistent:
+      /workspace_data:
+        size: "5Gi"
+        path: /workspace_data
+    command:
+      - sleep
+      - "9999999"
+
+commands:
+  # Validate manifests
+  - name: validate
+    description: "Validate all Kubernetes manifests"
+    exec: |
+      echo "Validating K8s manifests..."
+      kubectl apply -f ./host.yaml --dry-run=client
+      kubectl apply -f ./llm.yaml --dry-run=client
+      kubectl apply -f ./paperless.yaml --dry-run=client
+      kubectl apply -f ./paperless-llm.yaml --dry-run=client
+      kubectl apply -f ./paperless-smb.yaml --dry-run=client
+      echo "✓ All manifests are valid"
+
+  # Deploy all manifests
+  - name: deploy
+    description: "Deploy all Kubernetes manifests to the cluster"
+    exec: |
+      echo "Deploying manifests..."
+      kubectl apply -f ./host.yaml
+      kubectl apply -f ./llm.yaml
+      kubectl apply -f ./paperless.yaml
+      kubectl apply -f ./paperless-llm.yaml
+      kubectl apply -f ./paperless-smb.yaml
+      echo "✓ Deployment complete"
+
+  # Deploy with diff
+  - name: diff
+    description: "Show what will change before deploying"
+    exec: |
+      echo "=== host.yaml diff ==="
+      kubectl diff -f ./host.yaml || true
+      echo ""
+      echo "=== llm.yaml diff ==="
+      kubectl diff -f ./llm.yaml || true
+      echo ""
+      echo "=== paperless.yaml diff ==="
+      kubectl diff -f ./paperless.yaml || true
+      echo ""
+      echo "=== paperless-llm.yaml diff ==="
+      kubectl diff -f ./paperless-llm.yaml || true
+      echo ""
+      echo "=== paperless-smb.yaml diff ==="
+      kubectl diff -f ./paperless-smb.yaml || true
+
+  # Check cluster status
+  - name: status
+    description: "Check K8s cluster and deployed resources status"
+    exec: |
+      echo "=== Cluster Info ==="
+      kubectl cluster-info
+      echo ""
+      echo "=== Nodes ==="
+      kubectl get nodes -o wide
+      echo ""
+      echo "=== Persistent Volumes ==="
+      kubectl get pv
+      echo ""
+      echo "=== Storage Classes ==="
+      kubectl get storageclasses
+      echo ""
+      echo "=== Pods (all namespaces) ==="
+      kubectl get pods -A
+
+  # Get deployment logs
+  - name: logs
+    description: "View logs from deployed applications"
+    exec: |
+      if [ -z "$1" ]; then
+        echo "Usage: devspace run logs <namespace>"
+        echo "Available namespaces:"
+        kubectl get namespaces
+      else
+        kubectl logs -n "$1" -l app --all-containers=true --tail=100 -f
+      fi
+
+  # Clean up deployments
+  - name: clean
+    description: "Delete all deployed Kubernetes resources"
+    exec: |
+      echo "WARNING: This will delete all resources from manifests"
+      read -p "Continue? (y/N) " -n 1 -r
+      echo
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
+        kubectl delete -f ./host.yaml
+        kubectl delete -f ./llm.yaml
+        kubectl delete -f ./paperless.yaml
+        kubectl delete -f ./paperless-llm.yaml
+        kubectl delete -f ./paperless-smb.yaml
+        echo "✓ Resources deleted"
+      else
+        echo "Cancelled"
+      fi
+
+# Container configuration
+images:
+  devspace:
+    image: devspace/devspace:latest
+
+# Container registry (for future builds)
+registries:
+  docker:
+    auth:
+      username: ${REGISTRY_USERNAME}
+      password: ${REGISTRY_PASSWORD}
+
+# Environment variables
+env:
+  KUBECONFIG: ${KUBECONFIG_CONTEXT}
