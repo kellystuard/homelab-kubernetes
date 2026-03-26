@@ -29,6 +29,12 @@ kubectl version --client
 echo "✓ helm version:"
 helm version
 
+# Install pre-commit and set up hooks
+echo "📦 Installing pre-commit..."
+pip install --quiet pre-commit yamllint
+pre-commit install
+echo "✓ pre-commit hooks installed"
+
 # Make scripts executable
 if [ -d .spacelift/scripts ]; then
     chmod +x .spacelift/scripts/*.sh 2>/dev/null || true

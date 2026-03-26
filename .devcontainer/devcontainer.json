@@ -4,7 +4,13 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
-    "ghcr.io/devcontainers/features/git:1": {}
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "latest"
+    }
   },
   "customizations": {
     "vscode": {
@@ -13,7 +19,8 @@
         "ms-vscode.makefile-tools",
         "redhat.vscode-yaml",
         "esbenp.prettier-vscode",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "fnando.linter"
       ],
       "settings": {
         "yaml.schemas": {
@@ -21,7 +28,7 @@
           "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.28.0-standalone-strict/all.json": "*.yaml"
         },
         "[yaml]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.defaultFormatter": "redhat.vscode-yaml",
           "editor.formatOnSave": true,
           "editor.tabSize": 2
         }
