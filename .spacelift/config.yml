@@ -1,5 +1,4 @@
----
-version: 1
+version: "2"
 stack_defaults:
   # Required environment variables (set in Spacelift stack context or UI):
   #   CF_TUNNEL_HOST          - Cloudflare Access tunnel hostname (e.g. k8s.example.com)
@@ -7,8 +6,7 @@ stack_defaults:
   #   CF_ACCESS_CLIENT_SECRET - Cloudflare Access service-token client secret
   #   CF_TUNNEL_URL           - Local address to forward traffic to (default: localhost:6443)
   environment:
-    - name: CF_TUNNEL_URL
-      value: localhost:6443
+    CF_TUNNEL_URL: localhost:6443
 
   before_init:
     # Install cloudflared (pinned release; update CLOUDFLARED_VERSION + SHA256 together when upgrading)
@@ -31,9 +29,7 @@ stack_defaults:
     # Authenticate kubectl before planning/applying. Override this in stack settings
     # if your cluster login command differs.
     - 'if [ -n "${SPACELIFT_KUBE_AUTH_CMD:-}" ]; then eval "$SPACELIFT_KUBE_AUTH_CMD"; fi'
-
-  after_init:
-    # Start cloudflared Access TCP tunnel as a background process and record its PID.
+    # Start cloudflared Access TCP tunnel before init and record its PID.
     - |
       echo "==> Validating cloudflared environment variables..."
       if [ -z "${CF_TUNNEL_HOST:-}" ]; then
@@ -65,7 +61,7 @@ stack_defaults:
         exit 1
       fi
 
-  after_finally:
+  after_run:
     # Terminate the background cloudflared tunnel and wait for it to exit.
     - |
       if [ -f /tmp/cloudflared.pid ]; then
