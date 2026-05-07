@@ -29,7 +29,7 @@ stack_defaults:
     # Authenticate kubectl before planning/applying. Override this in stack settings
     # if your cluster login command differs.
     - 'if [ -n "${SPACELIFT_KUBE_AUTH_CMD:-}" ]; then eval "$SPACELIFT_KUBE_AUTH_CMD"; fi'
-    # Start cloudflared Access TCP tunnel as a background process and record its PID.
+    # Start cloudflared Access TCP tunnel before init and record its PID.
     - |
       echo "==> Validating cloudflared environment variables..."
       if [ -z "${CF_TUNNEL_HOST:-}" ]; then
