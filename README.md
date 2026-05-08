@@ -14,14 +14,14 @@ This repository manages infrastructure and services deployed to Kubernetes, incl
 
 ## Repository Structure
 
-- `host.yaml`: Cluster-level storage classes (`spinning`, `mirrored`, `fast`)
-- `llm.yaml`: LLM-related workloads/services
-- `paperless.yaml`: Base Paperless deployment resources
-- `paperless-llm.yaml`: Paperless + LLM integration resources
-- `paperless-smb.yaml`: Paperless + SMB integration resources
-- `server-plan.yaml`: Server/workload planning notes/manifests
+- `manifests/host.yaml`: Cluster-level storage classes (`spinning`, `mirrored`, `fast`)
+- `manifests/llm.yaml`: LLM-related workloads/services
+- `manifests/paperless.yaml`: Base Paperless deployment resources
+- `manifests/paperless-llm.yaml`: Paperless + LLM integration resources
+- `manifests/paperless-smb.yaml`: Paperless + SMB integration resources
+- `manifests/server-plan.yaml`: Server/workload planning notes/manifests
 - `.spacelift/scripts/`: Spacelift shell helpers (for CI/CD and secrets workflows)
-- `devspace.yaml`: Devspace commands for validate/deploy/diff/status/logs/clean
+- `devspace.yaml`: DevSpace commands for validate/deploy/diff/status/logs/clean
 
 ## Requirements
 
@@ -35,21 +35,21 @@ This repository manages infrastructure and services deployed to Kubernetes, incl
 ### 1) Validate manifests
 
 ```bash
-kubectl apply -f host.yaml --dry-run=client
-kubectl apply -f llm.yaml --dry-run=client
-kubectl apply -f paperless.yaml --dry-run=client
-kubectl apply -f paperless-llm.yaml --dry-run=client
-kubectl apply -f paperless-smb.yaml --dry-run=client
+kubectl apply -f manifests/host.yaml --dry-run=client
+kubectl apply -f manifests/llm.yaml --dry-run=client
+kubectl apply -f manifests/paperless.yaml --dry-run=client
+kubectl apply -f manifests/paperless-llm.yaml --dry-run=client
+kubectl apply -f manifests/paperless-smb.yaml --dry-run=client
 ```
 
 ### 2) Deploy manifests
 
 ```bash
-kubectl apply -f host.yaml
-kubectl apply -f llm.yaml
-kubectl apply -f paperless.yaml
-kubectl apply -f paperless-llm.yaml
-kubectl apply -f paperless-smb.yaml
+kubectl apply -f manifests/host.yaml
+kubectl apply -f manifests/llm.yaml
+kubectl apply -f manifests/paperless.yaml
+kubectl apply -f manifests/paperless-llm.yaml
+kubectl apply -f manifests/paperless-smb.yaml
 ```
 
 ### 3) Verify cluster resources
@@ -80,21 +80,21 @@ These notes are captured from prior work on this repository and are important fo
 ### Show what would change before apply
 
 ```bash
-kubectl diff -f host.yaml || true
-kubectl diff -f llm.yaml || true
-kubectl diff -f paperless.yaml || true
-kubectl diff -f paperless-llm.yaml || true
-kubectl diff -f paperless-smb.yaml || true
+kubectl diff -f manifests/host.yaml || true
+kubectl diff -f manifests/llm.yaml || true
+kubectl diff -f manifests/paperless.yaml || true
+kubectl diff -f manifests/paperless-llm.yaml || true
+kubectl diff -f manifests/paperless-smb.yaml || true
 ```
 
 ### Remove deployed resources
 
 ```bash
-kubectl delete -f host.yaml
-kubectl delete -f llm.yaml
-kubectl delete -f paperless.yaml
-kubectl delete -f paperless-llm.yaml
-kubectl delete -f paperless-smb.yaml
+kubectl delete -f manifests/host.yaml
+kubectl delete -f manifests/llm.yaml
+kubectl delete -f manifests/paperless.yaml
+kubectl delete -f manifests/paperless-llm.yaml
+kubectl delete -f manifests/paperless-smb.yaml
 ```
 
 ## Troubleshooting

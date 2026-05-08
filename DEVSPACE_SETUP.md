@@ -41,6 +41,10 @@ devspace run deploy
 devspace run status
 ```
 
+The DevSpace config lives at the repository root in `devspace.yaml`. The
+`manifests/` directory is reserved for Kubernetes resources so tools like
+`kubectl`, `kustomize`, and GitOps scanners can safely process it.
+
 Log streaming:
 
 ```bash
