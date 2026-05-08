@@ -1,5 +1,7 @@
 version: "2"
 stack_defaults:
+  project_root: manifests
+
   # Required environment variables (set in Spacelift stack context or UI):
   #   k8s_public_hostname         - Cloudflare Access tunnel hostname (e.g. k8s.example.com)
   #   service_token_client_id     - Cloudflare Access service-token client ID
