@@ -98,7 +98,7 @@ spec:
             - secretRef:
                 name: paperless-ai-auth
             - configMapRef:
-              name: paperless-ai-config
+                name: paperless-ai-config
           env:
             - name: PAPERLESS_API_URL
               value: http://paperless.paperless.svc.cluster.local/api
