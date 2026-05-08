@@ -77,7 +77,7 @@ metadata:
 spec:
   storageClassName: spinning
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 20Gi

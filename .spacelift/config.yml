@@ -13,7 +13,6 @@ stack_defaults:
     CLOUDFLARED_PID_FILE: /dev/shm/cloudflared.pid
 
   before_init:
-    - pwd
     # Install cloudflared (pinned release; update script version + SHA256 together when upgrading).
     - bash ../.spacelift/scripts/install-cloudflared.sh
     # Validate required environment variables for Cloudflare Access auth.
