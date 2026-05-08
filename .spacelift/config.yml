@@ -4,9 +4,7 @@ stack_defaults:
   #   k8s_public_hostname         - Cloudflare Access tunnel hostname (e.g. k8s.example.com)
   #   service_token_client_id     - Cloudflare Access service-token client ID
   #   service_token_client_secret - Cloudflare Access service-token client secret
-  # Legacy aliases are still supported:
-  #   CF_TUNNEL_HOST, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
-  #   CF_TUNNEL_URL           - Local address to forward traffic to (default: localhost:6443)
+  #   CF_TUNNEL_URL               - Local address to forward traffic to (default: localhost:6443)
   environment:
     CF_TUNNEL_URL: localhost:6443
     CLOUDFLARED_BIN: /tmp/cloudflared
@@ -17,7 +15,8 @@ stack_defaults:
       CLOUDFLARED_VERSION="2026.3.0"
       CLOUDFLARED_SHA256="4a9e50e6d6d798e90fcd01933151a90bf7edd99a0a55c28ad18f2e16263a5c30"
       CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64"
-      CLOUDFLARED_CHECKSUM_FILE="$(mktemp)" || { echo "ERROR: failed to create temporary file"; exit 1; }
+      CLOUDFLARED_CHECKSUM_FILE="$(mktemp)" \
+        || { echo "ERROR: failed to create temporary file"; exit 1; }
       echo "==> Installing cloudflared ${CLOUDFLARED_VERSION}..."
       curl -fsSL --output "${CLOUDFLARED_BIN}" "${CLOUDFLARED_URL}" \
         || { echo "ERROR: cloudflared download failed"; exit 1; }
@@ -33,33 +32,28 @@ stack_defaults:
         echo "ERROR: cloudflared installation failed"
         exit 1
       fi
-    # Authenticate kubectl before planning/applying. Override this in stack settings
-    # if your cluster login command differs.
-    - 'if [ -n "${SPACELIFT_KUBE_AUTH_CMD:-}" ]; then eval "$SPACELIFT_KUBE_AUTH_CMD"; fi'
     # Start cloudflared Access TCP tunnel before init and record its PID.
     - |
-      CF_TUNNEL_HOST="${CF_TUNNEL_HOST:-${k8s_public_hostname:-}}"
-      CF_ACCESS_CLIENT_ID="${CF_ACCESS_CLIENT_ID:-${service_token_client_id:-}}"
-      CF_ACCESS_CLIENT_SECRET="${CF_ACCESS_CLIENT_SECRET:-${service_token_client_secret:-}}"
       echo "==> Validating cloudflared environment variables..."
-      if [ -z "${CF_TUNNEL_HOST:-}" ]; then
-        echo "ERROR: CF_TUNNEL_HOST is not set"
+      if [ -z "${k8s_public_hostname:-}" ]; then
+        echo "ERROR: k8s_public_hostname is not set"
         exit 1
       fi
-      if [ -z "${CF_ACCESS_CLIENT_ID:-}" ]; then
-        echo "ERROR: CF_ACCESS_CLIENT_ID is not set"
+      if [ -z "${service_token_client_id:-}" ]; then
+        echo "ERROR: service_token_client_id is not set"
         exit 1
       fi
-      if [ -z "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
-        echo "ERROR: CF_ACCESS_CLIENT_SECRET is not set"
+      if [ -z "${service_token_client_secret:-}" ]; then
+        echo "ERROR: service_token_client_secret is not set"
         exit 1
       fi
-      echo "==> Starting cloudflared tunnel: ${CF_TUNNEL_HOST} -> ${CF_TUNNEL_URL}"
+    - |
+      echo "==> Starting cloudflared tunnel: ${k8s_public_hostname} -> ${CF_TUNNEL_URL}"
       "${CLOUDFLARED_BIN}" access tcp \
-        --hostname "${CF_TUNNEL_HOST}" \
+        --hostname "${k8s_public_hostname}" \
         --url "${CF_TUNNEL_URL}" \
-        --service-token-id "${CF_ACCESS_CLIENT_ID}" \
-        --service-token-secret "${CF_ACCESS_CLIENT_SECRET}" \
+        --service-token-id "${service_token_client_id}" \
+        --service-token-secret "${service_token_client_secret}" \
         </dev/null >/tmp/cloudflared.log 2>&1 &
       CLOUDFLARED_PID=$!
       echo "${CLOUDFLARED_PID}" > /tmp/cloudflared.pid
