@@ -59,7 +59,8 @@ stack_defaults:
         --hostname "${CF_TUNNEL_HOST}" \
         --url "${CF_TUNNEL_URL}" \
         --service-token-id "${CF_ACCESS_CLIENT_ID}" \
-        --service-token-secret "${CF_ACCESS_CLIENT_SECRET}" &
+        --service-token-secret "${CF_ACCESS_CLIENT_SECRET}" \
+        </dev/null >/tmp/cloudflared.log 2>&1 &
       CLOUDFLARED_PID=$!
       echo "${CLOUDFLARED_PID}" > /tmp/cloudflared.pid
       # Give the process a moment to start and verify it did not exit immediately
