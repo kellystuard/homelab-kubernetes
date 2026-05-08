@@ -1,9 +1,11 @@
 version: "2"
 stack_defaults:
   # Required environment variables (set in Spacelift stack context or UI):
-  #   CF_TUNNEL_HOST          - Cloudflare Access tunnel hostname (e.g. k8s.example.com)
-  #   CF_ACCESS_CLIENT_ID     - Cloudflare Access service-token client ID
-  #   CF_ACCESS_CLIENT_SECRET - Cloudflare Access service-token client secret
+  #   k8s_public_hostname         - Cloudflare Access tunnel hostname (e.g. k8s.example.com)
+  #   service_token_client_id     - Cloudflare Access service-token client ID
+  #   service_token_client_secret - Cloudflare Access service-token client secret
+  # Legacy aliases are still supported:
+  #   CF_TUNNEL_HOST, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
   #   CF_TUNNEL_URL           - Local address to forward traffic to (default: localhost:6443)
   environment:
     CF_TUNNEL_URL: localhost:6443
@@ -36,6 +38,9 @@ stack_defaults:
     - 'if [ -n "${SPACELIFT_KUBE_AUTH_CMD:-}" ]; then eval "$SPACELIFT_KUBE_AUTH_CMD"; fi'
     # Start cloudflared Access TCP tunnel before init and record its PID.
     - |
+      CF_TUNNEL_HOST="${CF_TUNNEL_HOST:-${k8s_public_hostname:-}}"
+      CF_ACCESS_CLIENT_ID="${CF_ACCESS_CLIENT_ID:-${service_token_client_id:-}}"
+      CF_ACCESS_CLIENT_SECRET="${CF_ACCESS_CLIENT_SECRET:-${service_token_client_secret:-}}"
       echo "==> Validating cloudflared environment variables..."
       if [ -z "${CF_TUNNEL_HOST:-}" ]; then
         echo "ERROR: CF_TUNNEL_HOST is not set"
