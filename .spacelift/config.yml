@@ -8,94 +8,19 @@ stack_defaults:
   environment:
     CF_TUNNEL_URL: localhost:6443
     CLOUDFLARED_BIN: /tmp/cloudflared
+    CLOUDFLARED_PID_FILE: /dev/shm/cloudflared.pid
 
   before_init:
-    # Install cloudflared (pinned release; update CLOUDFLARED_VERSION + SHA256 together when upgrading)
-    - |-
-      CLOUDFLARED_VERSION="2026.3.0"
-      CLOUDFLARED_SHA256="4a9e50e6d6d798e90fcd01933151a90bf7edd99a0a55c28ad18f2e16263a5c30"
-      CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64"
-      CLOUDFLARED_CHECKSUM_FILE="$(mktemp)" \
-        || { echo "ERROR: failed to create temporary file"; exit 1; }
-      echo "==> Installing cloudflared ${CLOUDFLARED_VERSION}..."
-      curl -fsSL --output "${CLOUDFLARED_BIN}" "${CLOUDFLARED_URL}" \
-        || { echo "ERROR: cloudflared download failed"; exit 1; }
-      printf "%s  %s\n" "${CLOUDFLARED_SHA256}" "${CLOUDFLARED_BIN}" > "${CLOUDFLARED_CHECKSUM_FILE}"
-      sha256sum -c -s "${CLOUDFLARED_CHECKSUM_FILE}" \
-        || { echo "ERROR: cloudflared checksum verification failed"; exit 1; }
-      rm -f "${CLOUDFLARED_CHECKSUM_FILE}"
-      echo "cloudflared checksum verified"
-      chmod +x "${CLOUDFLARED_BIN}"
-      if "${CLOUDFLARED_BIN}" --version; then
-        echo "cloudflared installed successfully"
-      else
-        echo "ERROR: cloudflared installation failed"
-        exit 1
-      fi
+    # Install cloudflared (pinned release; update script version + SHA256 together when upgrading).
+    - bash .spacelift/scripts/install-cloudflared.sh
+    # Validate required environment variables for Cloudflare Access auth.
+    - bash .spacelift/scripts/validate-cloudflared-env.sh
     # Start cloudflared Access TCP tunnel before init and record its PID.
-    - |
-      echo "==> Validating cloudflared environment variables..."
-      if [ -z "${k8s_public_hostname:-}" ]; then
-        echo "ERROR: k8s_public_hostname is not set"
-        exit 1
-      fi
-      if [ -z "${service_token_client_id:-}" ]; then
-        echo "ERROR: service_token_client_id is not set"
-        exit 1
-      fi
-      if [ -z "${service_token_client_secret:-}" ]; then
-        echo "ERROR: service_token_client_secret is not set"
-        exit 1
-      fi
-    - |
-      echo "==> Starting cloudflared tunnel: ${k8s_public_hostname} -> ${CF_TUNNEL_URL}"
-      "${CLOUDFLARED_BIN}" access tcp \
-        --hostname "${k8s_public_hostname}" \
-        --url "${CF_TUNNEL_URL}" \
-        --service-token-id "${service_token_client_id}" \
-        --service-token-secret "${service_token_client_secret}" \
-        </dev/null >/tmp/cloudflared.log 2>&1 &
-      CLOUDFLARED_PID=$!
-      echo "${CLOUDFLARED_PID}" > /tmp/cloudflared.pid
-      # Give the process a moment to start and verify it did not exit immediately
-      sleep 2
-      if kill -0 "${CLOUDFLARED_PID}" 2>/dev/null; then
-        echo "cloudflared tunnel started (PID ${CLOUDFLARED_PID})"
-      else
-        echo "ERROR: cloudflared tunnel exited unexpectedly"
-        exit 1
-      fi
+    - bash .spacelift/scripts/start-cloudflared-tunnel.sh
 
   after_run:
     # Terminate the background cloudflared tunnel and wait for it to exit.
-    - |
-      if [ -f /tmp/cloudflared.pid ]; then
-        CLOUDFLARED_PID=$(cat /tmp/cloudflared.pid)
-        echo "==> Stopping cloudflared tunnel (PID ${CLOUDFLARED_PID})..."
-        if kill "${CLOUDFLARED_PID}" 2>/dev/null; then
-          echo "SIGTERM sent to cloudflared; waiting up to 10 seconds..."
-          # Wait with a timeout: check every second for up to 10 seconds
-          for i in $(seq 1 10); do
-            if ! kill -0 "${CLOUDFLARED_PID}" 2>/dev/null; then
-              echo "cloudflared tunnel stopped (after ${i}s)"
-              break
-            fi
-            sleep 1
-          done
-          # Force-kill if still running after grace period
-          if kill -0 "${CLOUDFLARED_PID}" 2>/dev/null; then
-            echo "WARNING: cloudflared did not exit gracefully; sending SIGKILL..."
-            kill -9 "${CLOUDFLARED_PID}" 2>/dev/null || true
-            wait "${CLOUDFLARED_PID}" 2>/dev/null || true
-            echo "cloudflared tunnel force-stopped"
-          fi
-        else
-          echo "cloudflared process already exited"
-        fi
-        rm -f /tmp/cloudflared.pid
-      else
-        echo "==> No cloudflared PID file found; skipping tunnel teardown"
-      fi
+    - bash .spacelift/scripts/stop-cloudflared-tunnel.sh
 
   # Ensure required app secrets exist after apply, once namespaces are created.
   after_apply:
