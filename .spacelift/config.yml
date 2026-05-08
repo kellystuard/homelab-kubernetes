@@ -11,7 +11,7 @@ stack_defaults:
 
   before_init:
     # Install cloudflared (pinned release; update CLOUDFLARED_VERSION + SHA256 together when upgrading)
-    - |
+    - |-
       CLOUDFLARED_VERSION="2026.3.0"
       CLOUDFLARED_SHA256="4a9e50e6d6d798e90fcd01933151a90bf7edd99a0a55c28ad18f2e16263a5c30"
       CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64"
