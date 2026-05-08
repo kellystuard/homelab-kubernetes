@@ -14,17 +14,17 @@ stack_defaults:
 
   before_init:
     # Install cloudflared (pinned release; update script version + SHA256 together when upgrading).
-    - bash .spacelift/scripts/install-cloudflared.sh
+    - bash ../.spacelift/scripts/install-cloudflared.sh
     # Validate required environment variables for Cloudflare Access auth.
-    - bash .spacelift/scripts/validate-cloudflared-env.sh
+    - bash ../.spacelift/scripts/validate-cloudflared-env.sh
     # Start cloudflared Access TCP tunnel before init and record its PID.
-    - bash .spacelift/scripts/start-cloudflared-tunnel.sh
+    - bash ../.spacelift/scripts/start-cloudflared-tunnel.sh
 
   after_run:
     # Terminate the background cloudflared tunnel and wait for it to exit.
-    - bash .spacelift/scripts/stop-cloudflared-tunnel.sh
+    - bash ../.spacelift/scripts/stop-cloudflared-tunnel.sh
 
   # Ensure required app secrets exist after apply, once namespaces are created.
   after_apply:
-    - bash .spacelift/scripts/bootstrap-secrets-llm.sh
-    - bash .spacelift/scripts/bootstrap-secrets-paperless.sh
+    - bash ../.spacelift/scripts/bootstrap-secrets-llm.sh
+    - bash ../.spacelift/scripts/bootstrap-secrets-paperless.sh
